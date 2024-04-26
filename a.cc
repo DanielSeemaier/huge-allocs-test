@@ -15,7 +15,7 @@ long ms(Lambda &&f) {
         .count();
 }
 
-template<int sz>
+template <int sz>
 class mmap_vec {
    public:
     mmap_vec() = default;
@@ -43,6 +43,8 @@ class mmap_vec {
         }
         return ans;
     }
+
+    bool ok() { return data != MAP_FAILED; }
 
    private:
     std::size_t size = 0;
@@ -76,6 +78,8 @@ class hp_vec {
         return ans;
     }
 
+    bool ok() { return data != nullptr; }
+
    private:
     std::size_t size = 0;
     int *data = nullptr;
@@ -106,6 +110,8 @@ class vec {
         return ans;
     }
 
+    bool ok() { return data != nullptr; }
+
    private:
     std::size_t size = 0;
     int *data = nullptr;
@@ -118,6 +124,11 @@ void run_bench(const std::string &name) {
     T v;
 
     long t_alloc = ms([&] { v.init(size); });
+    if (!v.ok()) {
+        std::cout << name << " failed to allocate memory" << std::endl;
+        std::cout << std::endl;
+        return;
+    }
 
     long t_touch = ms([&] {
 #pragma omp parallel for
@@ -125,7 +136,8 @@ void run_bench(const std::string &name) {
             v[i] = static_cast<int>(i);
         }
     });
-    long t_sum = ms([&] { std::cout << "sum: " << v.sum() << std::endl; });
+    long t_sum =
+        ms([&] { std::cout << name << " sum: " << v.sum() << std::endl; });
     long t_free = ms([&] { v.free(); });
 
     std::cout << name << " time alloc: " << t_alloc << " ms" << std::endl;
@@ -137,11 +149,12 @@ void run_bench(const std::string &name) {
 int main() {
     long t_thp = ms([&] { run_bench<hp_vec>("thp"); });
     long t_2mb_hp = ms([&] { run_bench<mmap_vec<21>>("2mb_hp"); });
-    //long t_1gb_hp = ms([&] { run_bench<mmap_vec<30>>("1gb_hp"); });
+    long t_1gb_hp = ms([&] { run_bench<mmap_vec<30>>("1gb_hp"); });
     long t_malloc = ms([&] { run_bench<vec>("malloc"); });
 
     std::cout << "time thp: " << t_thp << " ms" << std::endl;
     std::cout << "time 2mb_hp: " << t_2mb_hp << " ms" << std::endl;
+    std::cout << "time 1gb_hp: " << t_1gb_hp << " ms" << std::endl;
     std::cout << "time malloc: " << t_malloc << " ms" << std::endl;
     return 0;
 }
